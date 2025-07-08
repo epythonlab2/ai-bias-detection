@@ -1,0 +1,13 @@
+# Exclude unnecessary files
+.venv/
+__pycache__/
+instance/
+tailwind.config.js
+*.json
+.pytest_cache/
+input.css
+output.css
+db.sqlite3
+node_modules/
+.env
+*.pdf
