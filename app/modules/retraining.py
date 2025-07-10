@@ -80,7 +80,7 @@ def finetune_model(df: pd.DataFrame):
             num_train_epochs=3,
             logging_dir=f"{OUTPUT_DIR}/logs",
             logging_steps=10,
-            eval_strategy="no",             # ❌ Disable eval
+            eval_strategy="epoch",             # ❌ Disable eval
             save_strategy="no",                   # ❌ Disable saving
             report_to="none",
             load_best_model_at_end=True,
