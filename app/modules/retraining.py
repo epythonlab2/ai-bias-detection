@@ -44,13 +44,6 @@ def tokenize_function(examples):
     )
 
 
-def compute_metrics(eval_pred):
-    logits, labels = eval_pred
-    preds = logits.argmax(axis=1)
-    accuracy = (preds == labels).astype(float).mean()
-    return {"accuracy": accuracy}
-
-
 def zip_model(output_dir: str, zip_path: str):
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
         for foldername, _, filenames in os.walk(output_dir):
@@ -77,17 +70,19 @@ def finetune_model(df: pd.DataFrame):
             label2id=label2id
         )
 
+        # 🧠 Auto detect if CUDA available
+        use_cpu = not torch.cuda.is_available()
+
         training_args = TrainingArguments(
             output_dir=OUTPUT_DIR,
-            per_device_train_batch_size=1,
+            per_device_train_batch_size=1,        # 🔻 Smallest possible
             per_device_eval_batch_size=1,
-            num_train_epochs=10,
-            eval_strategy="epoch",
+            num_train_epochs=3,
             logging_dir=f"{OUTPUT_DIR}/logs",
             logging_steps=10,
-            save_strategy="no",  # Optional: skip model checkpointing
+            eval_strategy="no",             # ❌ Disable eval
+            save_strategy="no",                   # ❌ Disable saving
             report_to="none",
-
             load_best_model_at_end=True,
             metric_for_best_model="accuracy",
             greater_is_better=True,
@@ -95,8 +90,7 @@ def finetune_model(df: pd.DataFrame):
             use_cpu=True,
             dataloader_num_workers=0,
             dataloader_pin_memory=False,
-            disable_tqdm=True,
-            load_best_model_at_end=True
+            disable_tqdm=True
         )
 
         trainer = Trainer(
@@ -104,7 +98,6 @@ def finetune_model(df: pd.DataFrame):
             args=training_args,
             train_dataset=tokenized_datasets["train"],
             eval_dataset=tokenized_datasets["test"],
-            compute_metrics=compute_metrics,
             callbacks=[EarlyStoppingCallback(early_stopping_patience=2)],
         )
 
@@ -125,3 +118,4 @@ def finetune_model(df: pd.DataFrame):
         logs.append(f"❌ Error during fine-tuning: {str(e)}")
 
     return "\n".join(logs)
+
