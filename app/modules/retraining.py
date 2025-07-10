@@ -95,7 +95,8 @@ def finetune_model(df: pd.DataFrame):
             use_cpu=True,
             dataloader_num_workers=0,
             dataloader_pin_memory=False,
-            disable_tqdm=True
+            disable_tqdm=True,
+            load_best_model_at_end=True
         )
 
         trainer = Trainer(
