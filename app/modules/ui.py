@@ -5,7 +5,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.figure_factory as ff
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from modules.retraining import finetune_model  # <-- Add retraining module import
+from modules.retraining import finetune_and_predict  # ✅ Updated import
+import io
+import time
+
 
 def display_results(df: pd.DataFrame):
     labels = ["Positive", "Neutral", "Negative"]
@@ -80,7 +83,6 @@ def display_results(df: pd.DataFrame):
                 use_container_width=True
             )
 
-            # Add button to save misclassified samples for retraining
             if st.button("➕ Add Misclassified to Retrain Dataset"):
                 retrain_samples = incorrect_df[["headline", "manual_label"]].copy()
 
@@ -99,7 +101,7 @@ def display_results(df: pd.DataFrame):
         with col2:
             st.download_button("📥 Download Misclassified Predictions", incorrect_df.to_csv(index=False), "misclassified_predictions.csv")
 
-    # === LOGS TAB (Optional placeholder) ===
+    # === LOGS TAB (Placeholder) ===
     with tab_logs:
         st.markdown("### Logs will appear here.")
 
@@ -111,8 +113,42 @@ def display_results(df: pd.DataFrame):
             st.info("No retrain data available. Add misclassified samples first.")
         else:
             st.write(f"{len(st.session_state['retrain_samples'])} samples ready for fine-tuning.")
+
             if st.button("🚀 Start Fine-tuning"):
-                with st.spinner("Fine-tuning in progress..."):
-                    logs = finetune_model(st.session_state["retrain_samples"])
-                    st.success("✅ Fine-tuning complete.")
-                    st.text(logs or "No logs returned.")
+                st.info("Fine-tuning may take several minutes on CPU...")
+
+               
+                log_stream = io.StringIO()
+                placeholder = st.empty()
+
+                def log_callback(msg):
+                    log_stream.write(msg + "\n")
+                    placeholder.text_area("📜 Training Logs (Live)", log_stream.getvalue(), height=300)
+
+                start = time.time()
+                try:
+                    with st.spinner("Training in progress..."):
+                        df_updated, logs = finetune_and_predict(
+                            st.session_state["retrain_samples"],
+                            callback=log_callback
+                        )
+                    duration = time.time() - start
+                    st.success(f"✅ Fine-tuning complete in {duration:.2f} seconds.")
+                    st.text_area("📜 Final Logs", logs or "No logs returned.", height=300)
+
+                    if os.path.exists("finbert-finetuned.zip"):
+                        with open("finbert-finetuned.zip", "rb") as f:
+                            st.download_button(
+                                "📥 Download Finetuned Model",
+                                f,
+                                file_name="finbert-finetuned.zip"
+                            )
+                    else:
+                        st.warning("Model zip file not found.")
+
+                    st.session_state["df_classified"] = df_updated
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"❌ Fine-tuning failed: {str(e)}")
+
